@@ -102,6 +102,8 @@ class LightBurnParser:
         tree = ET.parse(input_file_path)
         root = tree.getroot()
 
+        corrections = []
+
         for mat_node in root.findall("Material"):
             mat_name = mat_node.get("name")
             
@@ -155,6 +157,35 @@ class LightBurnParser:
                         power_normalize_cap=power_normalize_cap
                     )
                     if pred_cut is not None:
+                        # AUDIT DEVIATION
+                        ref_ev = engine.calculate_specific_energy_cut(
+                            speed=current_speed,
+                            power=current_power,
+                            thickness=max(0.1, thickness),
+                            kerf=0.15,
+                            wattage=source_wattage
+                        )
+                        cal_ev = engine.calculate_specific_energy_cut(
+                            speed=pred_cut["speed"],
+                            power=pred_cut["power"],
+                            thickness=max(0.1, thickness),
+                            kerf=0.15,
+                            wattage=target_wattage
+                        )
+                        if ref_ev > 0:
+                            ratio = cal_ev / ref_ev
+                            ratio_pct = (ratio - 1.0) * 100.0
+                            if abs(ratio_pct) > 25.0:
+                                corrections.append({
+                                    "material": mat_name,
+                                    "type": "Cut",
+                                    "thickness": f"{thickness:.1f}mm",
+                                    "orig_setting": f"{current_speed} mm/s @ {current_power}%",
+                                    "new_setting": f"{pred_cut['speed']} mm/s @ {pred_cut['power']}%",
+                                    "deviation": f"{ratio_pct:+.1f}%",
+                                    "reason": "Physics constant mismatch. Standard reference suggests source speed was physically too fast." if ratio_pct > 0 else "Excessive energy corrected to prevent material charring."
+                                })
+
                         if speed_node is not None:
                             speed_node.set("Value", str(pred_cut["speed"]))
                         if max_power_node is not None:
@@ -191,6 +222,35 @@ class LightBurnParser:
                         power_normalize_cap=power_normalize_cap
                     )
                     if pred_eng is not None:
+                        # AUDIT DEVIATION
+                        ref_ea = engine.calculate_specific_energy_engrave(
+                            speed=current_speed,
+                            power=current_power,
+                            interval=current_interval,
+                            kerf=0.15,
+                            wattage=source_wattage
+                        )
+                        cal_ea = engine.calculate_specific_energy_engrave(
+                            speed=pred_eng["speed"],
+                            power=pred_eng["power"],
+                            interval=pred_eng["interval_mm"],
+                            kerf=0.15,
+                            wattage=target_wattage
+                        )
+                        if ref_ea > 0:
+                            ratio = cal_ea / ref_ea
+                            ratio_pct = (ratio - 1.0) * 100.0
+                            if abs(ratio_pct) > 25.0:
+                                corrections.append({
+                                    "material": mat_name,
+                                    "type": "Scan",
+                                    "thickness": mode,
+                                    "orig_setting": f"{current_speed} mm/s @ {current_power}%",
+                                    "new_setting": f"{pred_eng['speed']} mm/s @ {pred_eng['power']}%",
+                                    "deviation": f"{ratio_pct:+.1f}%",
+                                    "reason": "Standard reference suggests source speed was physically too fast or slow."
+                                })
+
                         if speed_node is not None:
                             speed_node.set("Value", str(pred_eng["speed"]))
                         if max_power_node is not None:
@@ -202,6 +262,9 @@ class LightBurnParser:
         # Write out the modified XML
         os.makedirs(os.path.dirname(output_file_path), exist_ok=True)
         tree.write(output_file_path, encoding="UTF-8", xml_declaration=True)
+
+        return corrections
+
 
 
     def export_k40_whisperer_txt(self, library_data, output_txt_path):

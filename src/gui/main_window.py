@@ -1188,11 +1188,17 @@ class LaserSettingsApp(ctk.CTk):
                 ratio_str = f"{ratio_pct:+.1f}%"
                 ratio_color = "#D9534F" if ratio_pct > 12.0 else "#5CB85C"
                 
+                is_large_deviation = abs(ratio_pct) > 25.0
+                if is_large_deviation:
+                    ratio_str = f"⚠️ {ratio_str}"
+                    ratio_color = "#FF9F43" # Amber warning alert
+                
                 cal_spd_disp = cal_spd_metric if is_metric else round(cal_spd_metric / 25.4, 3)
                 disp_cal_settings = f"{cal_spd_disp:.2f}{unit_spd} @ {cal_pow}%"
                 disp_cal_ev = f"{cal_ev:.2f}"
                 disp_cal_el = f"{cal_el:.2f}"
             else:
+                is_large_deviation = False
                 disp_cal_settings = "--"
                 disp_cal_ev = "--"
                 disp_cal_el = "--"
@@ -1216,8 +1222,20 @@ class LaserSettingsApp(ctk.CTk):
             ctk.CTkLabel(self.analytics_frame, text=disp_cal_settings).grid(row=row_idx, column=4, padx=5, pady=5)
             ctk.CTkLabel(self.analytics_frame, text=disp_cal_ev, font=ctk.CTkFont(weight="bold")).grid(row=row_idx, column=5, padx=5, pady=5)
             ctk.CTkLabel(self.analytics_frame, text=disp_cal_el).grid(row=row_idx, column=6, padx=5, pady=5)
-            ctk.CTkLabel(self.analytics_frame, text=ratio_str, text_color=ratio_color, font=ctk.CTkFont(weight="bold")).grid(row=row_idx, column=7, padx=5, pady=5)
+            
+            lbl_ratio = ctk.CTkLabel(self.analytics_frame, text=ratio_str, text_color=ratio_color, font=ctk.CTkFont(weight="bold"))
+            lbl_ratio.grid(row=row_idx, column=7, padx=5, pady=5)
+            
+            if is_large_deviation:
+                tooltip_text = (
+                    "Large thermodynamic deviation detected. The source library setting deviates "
+                    "significantly from verified physical benchmarks (e.g. too fast for thickness, or delivering "
+                    "insufficient cut energy). The math engine has corrected this to ensure a successful cut."
+                )
+                ToolTip(lbl_ratio, tooltip_text)
+                
             row_idx += 1
+
 
     # ==================== TAB 4: IMPORT / EXPORT ====================
     def _build_import_tab(self):
@@ -1886,7 +1904,7 @@ class LaserSettingsApp(ctk.CTk):
                 except ValueError:
                     pass
 
-            self.parser.scale_and_export_clb(
+            corrections = self.parser.scale_and_export_clb(
                 input_file_path=self.loaded_library_path,
                 output_file_path=file_path,
                 engine=self.engine,
@@ -1904,6 +1922,9 @@ class LaserSettingsApp(ctk.CTk):
             )
             
             messagebox.showinfo("Success", f"Calibrated LightBurn library successfully exported to:\n{file_path}")
+            
+            if corrections:
+                SettingAuditReportWindow(self, corrections)
         except Exception as e:
             messagebox.showerror("Error", f"Export failed: {e}")
 
@@ -3376,4 +3397,67 @@ class RenameExportWindow(ctk.CTkToplevel):
             
         self.export_callback(final_entries)
         self.destroy()
+
+
+class SettingAuditReportWindow(ctk.CTkToplevel):
+    def __init__(self, parent, corrections):
+        super().__init__(parent)
+        self.parent = parent
+        self.corrections = corrections
+        
+        self.title("Thermodynamic Auditor - Calibrated Settings Correction Report")
+        self.geometry("780x450")
+        self.grab_set() # Modal
+        
+        # Header title
+        ctk.CTkLabel(self, text="⚠️ Thermodynamic Setting Corrections Applied", font=ctk.CTkFont(family="Inter", size=16, weight="bold"), text_color="#FF9F43").pack(pady=15)
+        
+        # Subtitle
+        desc = (
+            "The math engine successfully scaled your library, but detected and corrected "
+            "physically inconsistent source settings (outliers deviating by >25% from verified "
+            "material benchmarks) to ensure safe operations and clean cuts."
+        )
+        ctk.CTkLabel(self, text=desc, font=ctk.CTkFont(size=11), wraplength=700, justify="center").pack(pady=(0, 10))
+        
+        # Scrollable container for entries
+        scroll_frame = ctk.CTkScrollableFrame(self, height=280)
+        scroll_frame.pack(fill="both", expand=True, padx=20, pady=10)
+        
+        # Headers
+        header_frame = ctk.CTkFrame(scroll_frame, fg_color="transparent")
+        header_frame.pack(fill="x", pady=5)
+        
+        ctk.CTkLabel(header_frame, text="Material & Size", font=ctk.CTkFont(weight="bold"), width=150, anchor="w").pack(side="left", padx=5)
+        ctk.CTkLabel(header_frame, text="Original Stock", font=ctk.CTkFont(weight="bold"), width=120, anchor="w").pack(side="left", padx=5)
+        ctk.CTkLabel(header_frame, text="Calibrated Setting", font=ctk.CTkFont(weight="bold"), width=130, anchor="w").pack(side="left", padx=5)
+        ctk.CTkLabel(header_frame, text="Energy Diff", font=ctk.CTkFont(weight="bold"), width=100, anchor="w").pack(side="left", padx=5)
+        ctk.CTkLabel(header_frame, text="Correction Rationale", font=ctk.CTkFont(weight="bold"), width=220, anchor="w").pack(side="left", padx=5)
+        
+        for idx, item in enumerate(self.corrections):
+            row = ctk.CTkFrame(scroll_frame, fg_color="gray20", height=45)
+            row.pack(fill="x", pady=4, padx=2)
+            
+            # Material name & thickness
+            mat_lbl = f"{item['material']} ({item['thickness']})"
+            ctk.CTkLabel(row, text=mat_lbl, width=150, anchor="w", font=ctk.CTkFont(size=11, weight="bold")).pack(side="left", padx=5)
+            
+            # Original
+            ctk.CTkLabel(row, text=item["orig_setting"], width=120, anchor="w", font=ctk.CTkFont(size=11), text_color="#FF6B6B").pack(side="left", padx=5)
+            
+            # Calibrated
+            ctk.CTkLabel(row, text=item["new_setting"], width=130, anchor="w", font=ctk.CTkFont(size=11, weight="bold"), text_color="#51CF66").pack(side="left", padx=5)
+            
+            # Deviation
+            ctk.CTkLabel(row, text=item["deviation"], width=100, anchor="w", font=ctk.CTkFont(size=11, weight="bold"), text_color="#FF9F43").pack(side="left", padx=5)
+            
+            # Reason
+            ctk.CTkLabel(row, text=item["reason"], width=220, anchor="w", font=ctk.CTkFont(size=10, slant="italic"), wraplength=200, justify="left").pack(side="left", padx=5)
+            
+        # Close Button
+        btn_frame = ctk.CTkFrame(self, fg_color="transparent")
+        btn_frame.pack(fill="x", pady=15, padx=20)
+        
+        ctk.CTkButton(btn_frame, text="Close Report", fg_color="#1F6AA5", hover_color="#154B75", command=self.destroy).pack(side="right")
+
 
