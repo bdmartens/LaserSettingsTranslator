@@ -99,6 +99,10 @@ class LaserSettingsApp(ctk.CTk):
         self.loaded_library_path = None
         self.loaded_library_data = None
 
+        # High power normalization options
+        self.normalize_high_power = ctk.BooleanVar(value=True)
+        self.power_cap_percentage = ctk.DoubleVar(value=80.0)
+
         # Color coding state variables
         self.cut_color = "#FF6B6B"
         self.engrave_color = "#51CF66"
@@ -1248,11 +1252,35 @@ class LaserSettingsApp(ctk.CTk):
         exp_title = ctk.CTkLabel(exp_card, text="Step 2: Generate Customized Libraries", font=ctk.CTkFont(size=14, weight="bold"))
         exp_title.pack(anchor="w", padx=15, pady=15)
 
-        self.export_lb_btn = ctk.CTkButton(exp_card, text="Export scaled LightBurn Library (.clb)", state="disabled", command=self._export_scaled_clb)
-        self.export_lb_btn.pack(side="left", padx=20, pady=15)
+        # High Power Normalization Controls Frame
+        norm_frame = ctk.CTkFrame(exp_card, fg_color="transparent")
+        norm_frame.pack(fill="x", padx=20, pady=(0, 10))
 
-        self.export_k40_btn = ctk.CTkButton(exp_card, text="Export K40 Whisperer cheat sheet (.txt)", state="disabled", command=self._export_k40_cheat_sheet)
-        self.export_k40_btn.pack(side="left", padx=20, pady=15)
+        self.chk_norm = ctk.CTkCheckBox(
+            norm_frame, 
+            text="Enable High-Power Normalization (reduces speed to match energy under cap)", 
+            variable=self.normalize_high_power,
+            command=self._on_norm_toggle
+        )
+        self.chk_norm.pack(side="left", padx=5)
+
+        self.lbl_norm_cap = ctk.CTkLabel(norm_frame, text="Cap Power at:")
+        self.lbl_norm_cap.pack(side="left", padx=(20, 5))
+
+        self.entry_norm_cap = ctk.CTkEntry(norm_frame, textvariable=self.power_cap_percentage, width=50)
+        self.entry_norm_cap.pack(side="left", padx=5)
+
+        ctk.CTkLabel(norm_frame, text="%").pack(side="left")
+
+        # Export Buttons Container
+        btn_container = ctk.CTkFrame(exp_card, fg_color="transparent")
+        btn_container.pack(fill="x", padx=20, pady=5)
+
+        self.export_lb_btn = ctk.CTkButton(btn_container, text="Export scaled LightBurn Library (.clb)", state="disabled", command=self._export_scaled_clb)
+        self.export_lb_btn.pack(side="left", padx=5, pady=5)
+
+        self.export_k40_btn = ctk.CTkButton(btn_container, text="Export K40 Whisperer cheat sheet (.txt)", state="disabled", command=self._export_k40_cheat_sheet)
+        self.export_k40_btn.pack(side="left", padx=5, pady=5)
 
     # ==================== INTERACTION LOGIC ====================
     def _on_unit_system_changed(self, new_unit, convert=True):
@@ -1851,6 +1879,13 @@ class LaserSettingsApp(ctk.CTk):
             laser_type = self.selected_laser_type.get()
             laser_data = self.reference_db.get("laser_types", {}).get(laser_type, {})
             
+            norm_cap = None
+            if self.normalize_high_power.get():
+                try:
+                    norm_cap = float(self.power_cap_percentage.get())
+                except ValueError:
+                    pass
+
             self.parser.scale_and_export_clb(
                 input_file_path=self.loaded_library_path,
                 output_file_path=file_path,
@@ -1864,7 +1899,8 @@ class LaserSettingsApp(ctk.CTk):
                 v_max=self.max_speed.get(),
                 v_max_eng=self.max_speed_eng.get(),
                 p_min=self.min_power.get(),
-                p_max=self.max_power.get()
+                p_max=self.max_power.get(),
+                power_normalize_cap=norm_cap
             )
             
             messagebox.showinfo("Success", f"Calibrated LightBurn library successfully exported to:\n{file_path}")
@@ -1888,6 +1924,13 @@ class LaserSettingsApp(ctk.CTk):
             scaled_library = {"materials": []}
             laser_type = self.selected_laser_type.get()
             laser_data = self.reference_db.get("laser_types", {}).get(laser_type, {}).get("materials", {})
+
+            norm_cap = None
+            if self.normalize_high_power.get():
+                try:
+                    norm_cap = float(self.power_cap_percentage.get())
+                except ValueError:
+                    pass
 
             for mat in self.loaded_library_data["materials"]:
                 scaled_mat = {"name": mat["name"], "entries": []}
@@ -1919,7 +1962,8 @@ class LaserSettingsApp(ctk.CTk):
                             v_max=self.max_speed.get(),
                             p_min=self.min_power.get(),
                             p_max=self.max_power.get(),
-                            c_mat_override=c_mat_override
+                            c_mat_override=c_mat_override,
+                            power_normalize_cap=norm_cap
                         )
                         if pred is not None:
                             scaled_entry["speed"] = pred["speed"]
@@ -1948,7 +1992,8 @@ class LaserSettingsApp(ctk.CTk):
                             v_max=self.max_speed_eng.get(),
                             p_min=self.min_power.get(),
                             p_max=self.max_power.get(),
-                            e_ref_override=e_ref_override
+                            e_ref_override=e_ref_override,
+                            power_normalize_cap=norm_cap
                         )
                         if pred is not None:
                             scaled_entry["speed"] = pred["speed"]
@@ -1961,6 +2006,12 @@ class LaserSettingsApp(ctk.CTk):
             messagebox.showinfo("Success", f"K40 Whisperer cheat sheet successfully exported to:\n{file_path}")
         except Exception as e:
             messagebox.showerror("Error", f"Cheat sheet export failed: {e}")
+
+    def _on_norm_toggle(self):
+        if self.normalize_high_power.get():
+            self.entry_norm_cap.configure(state="normal")
+        else:
+            self.entry_norm_cap.configure(state="disabled")
 
     def _update_material_dropdown_options(self):
         if self.loaded_library_data is not None:

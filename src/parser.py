@@ -93,10 +93,11 @@ class LightBurnParser:
 
         return library_data
 
-    def scale_and_export_clb(self, input_file_path, output_file_path, engine, source_wattage, target_wattage, kappa_cut, kappa_eng, reference_db, laser_type="CO2", v_max=80.0, v_max_eng=400.0, p_min=10.0, p_max=90.0):
+    def scale_and_export_clb(self, input_file_path, output_file_path, engine, source_wattage, target_wattage, kappa_cut, kappa_eng, reference_db, laser_type="CO2", v_max=80.0, v_max_eng=400.0, p_min=10.0, p_max=90.0, power_normalize_cap=None):
         """
         Parse an existing .clb file, scale all values using the math engine, 
         and write a fully compliant LightBurn XML library.
+        Supports power_normalize_cap to limit power while scaling speed to preserve identical energy delivery.
         """
         tree = ET.parse(input_file_path)
         root = tree.getroot()
@@ -150,7 +151,8 @@ class LightBurnParser:
                         v_max=v_max,
                         p_min=p_min,
                         p_max=p_max,
-                        c_mat_override=c_mat_override
+                        c_mat_override=c_mat_override,
+                        power_normalize_cap=power_normalize_cap
                     )
                     if pred_cut is not None:
                         if speed_node is not None:
@@ -185,7 +187,8 @@ class LightBurnParser:
                         v_max=v_max_eng,
                         p_min=p_min,
                         p_max=p_max,
-                        e_ref_override=e_ref_override
+                        e_ref_override=e_ref_override,
+                        power_normalize_cap=power_normalize_cap
                     )
                     if pred_eng is not None:
                         if speed_node is not None:
@@ -199,6 +202,7 @@ class LightBurnParser:
         # Write out the modified XML
         os.makedirs(os.path.dirname(output_file_path), exist_ok=True)
         tree.write(output_file_path, encoding="UTF-8", xml_declaration=True)
+
 
     def export_k40_whisperer_txt(self, library_data, output_txt_path):
         """

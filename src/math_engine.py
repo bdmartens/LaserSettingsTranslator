@@ -358,11 +358,12 @@ class LaserMathEngine:
         effective_power = wattage * (power / 100.0)
         return effective_power / speed
 
-    def predict_cutting_settings(self, thickness, material_name, target_power, target_passes, user_wattage, kappa_cut, reference_materials, laser_type="CO2", v_max=80.0, p_min=10.0, p_max=90.0, c_mat_override=None):
+    def predict_cutting_settings(self, thickness, material_name, target_power, target_passes, user_wattage, kappa_cut, reference_materials, laser_type="CO2", v_max=80.0, p_min=10.0, p_max=90.0, c_mat_override=None, power_normalize_cap=None):
         """
         Predict the target cutting speed and power for a given material, thickness, and target power percentage.
         Respects machine safety constraints (v_max, p_min, p_max) and scales settings to maintain target specific energy.
         Allows c_mat_override to support universal, database-independent custom material scaling.
+        Supports power_normalize_cap to limit power while scaling speed to preserve identical energy delivery.
         """
         if c_mat_override is not None:
             c_mat = c_mat_override
@@ -386,8 +387,13 @@ class LaserMathEngine:
         if c_mat <= 0:
             return None
             
+        # If a power normalization cap is specified, restrict our upper power bound
+        effective_p_max = p_max
+        if power_normalize_cap is not None:
+            effective_p_max = min(p_max, power_normalize_cap)
+
         # 1. Enforce power durability limits on inputted target power
-        clamped_power = max(p_min, min(p_max, target_power))
+        clamped_power = max(p_min, min(effective_p_max, target_power))
         
         # 2. Predict base cutting speed at clamped power
         ref_spot = self.calculate_spot_size(40.0, "CO2")
@@ -404,7 +410,7 @@ class LaserMathEngine:
             scaled_power_pct = (scaled_power_watts / user_wattage) * 100.0
             
             # Clamp the adjusted power within min/max thresholds
-            clamped_power = max(p_min, min(p_max, scaled_power_pct))
+            clamped_power = max(p_min, min(effective_p_max, scaled_power_pct))
             predicted_speed = v_max
             
         elif predicted_speed < 0.5:
@@ -417,11 +423,12 @@ class LaserMathEngine:
             "passes": target_passes
         }
 
-    def predict_engraving_settings(self, material_name, mode, target_power, target_interval, user_wattage, kappa_eng, reference_materials, laser_type="CO2", v_max=400.0, p_min=10.0, p_max=90.0, e_ref_override=None):
+    def predict_engraving_settings(self, material_name, mode, target_power, target_interval, user_wattage, kappa_eng, reference_materials, laser_type="CO2", v_max=400.0, p_min=10.0, p_max=90.0, e_ref_override=None, power_normalize_cap=None):
         """
         Predict the engraving speed and power for a given material and mode.
         Respects machine safety constraints (v_max, p_min, p_max).
         Allows e_ref_override to support universal, database-independent custom material scaling.
+        Supports power_normalize_cap to limit power while scaling speed to preserve identical energy delivery.
         """
         if e_ref_override is not None:
             e_ref = e_ref_override
@@ -444,7 +451,12 @@ class LaserMathEngine:
         if e_ref <= 0:
             return None
             
-        clamped_power = max(p_min, min(p_max, target_power))
+        # If a power normalization cap is specified, restrict our upper power bound
+        effective_p_max = p_max
+        if power_normalize_cap is not None:
+            effective_p_max = min(p_max, power_normalize_cap)
+
+        clamped_power = max(p_min, min(effective_p_max, target_power))
         
         ref_spot = self.calculate_spot_size(40.0, "CO2")
         user_spot = self.calculate_spot_size(user_wattage, laser_type)
@@ -457,7 +469,7 @@ class LaserMathEngine:
             # Reduce power to keep speed at v_max
             scaled_power_watts = (v_max * target_interval * e_ref) / (kappa_eng * spot_ratio)
             scaled_power_pct = (scaled_power_watts / user_wattage) * 100.0
-            clamped_power = max(p_min, min(p_max, scaled_power_pct))
+            clamped_power = max(p_min, min(effective_p_max, scaled_power_pct))
             predicted_speed = v_max
         elif predicted_speed < 10.0:
             predicted_speed = 10.0
@@ -467,3 +479,16 @@ class LaserMathEngine:
             "power": round(clamped_power, 1),
             "interval_mm": target_interval
         }
+
+    def normalize_to_power_cap(self, speed, power, power_cap, min_speed=0.5):
+        """
+        Cap the power at a given percentage (power_cap) and scale down the speed
+        proportionally to maintain the exact same energy delivery to the material.
+        """
+        if power <= power_cap or power <= 0:
+            return {"speed": speed, "power": power, "normalized": False}
+        
+        ratio = power_cap / power
+        new_speed = max(min_speed, round(speed * ratio, 2))
+        return {"speed": new_speed, "power": power_cap, "normalized": True}
+

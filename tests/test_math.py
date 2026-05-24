@@ -251,6 +251,35 @@ def run_tests():
     )
     print(f"  * Linear Energy Density El (Imperial): {el_val_imp:.2f} J/in (Expected: 50.80 J/in)")
     assert abs(el_val_imp - 50.80) < 0.1, "Imperial linear energy density calculation is incorrect"
+    # 9. Test High Power Normalization
+    print("\n[TEST 9] Testing High Power Normalization...")
+    # Base predicted speed at 95% is 15.83 mm/s.
+    # Normalizing with cap = 80% should yield speed = 13.3 mm/s and power = 80.0%
+    pred_normalized = engine.predict_cutting_settings(
+        thickness=3.0,
+        material_name="Birch Plywood",
+        target_power=95.0,
+        target_passes=1,
+        user_wattage=40.0,
+        kappa_cut=1.0,
+        reference_materials=ref_db_cut,
+        laser_type="CO2",
+        v_max=80.0,
+        p_min=10.0,
+        p_max=90.0,
+        power_normalize_cap=80.0
+    )
+    print(f"  * Normalized Cut Settings: {pred_normalized} (Expected power: 80.0%, speed: 13.3 mm/s)")
+    assert pred_normalized["power"] == 80.0, "Normalization did not cap power at 80%"
+    assert abs(pred_normalized["speed"] - 13.3) < 0.1, "Normalization did not scale speed correctly to preserve energy density"
+
+    # Explicit utility call testing: speed 10.0 mm/s @ 95% power normalized to 80% cap
+    # 10.0 * 80 / 95 = 8.42 mm/s
+    norm_res = engine.normalize_to_power_cap(speed=10.0, power=95.0, power_cap=80.0)
+    print(f"  * Direct Utility Normalization: {norm_res} (Expected speed: 8.42 mm/s, power: 80.0%)")
+    assert norm_res["power"] == 80.0, "Utility did not cap power at 80%"
+    assert abs(norm_res["speed"] - 8.42) < 0.01, "Utility did not scale speed correctly"
+    assert norm_res["normalized"] is True, "Normalization flag should be True"
     print("  => SUCCESS!")
 
 
@@ -260,3 +289,4 @@ def run_tests():
 
 if __name__ == "__main__":
     run_tests()
+
