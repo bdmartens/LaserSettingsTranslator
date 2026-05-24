@@ -1,0 +1,105 @@
+{
+  "laser_types": {
+    "CO2": {
+      "default_wattage": 40.0,
+      "wavelength_nm": 10600.0,
+      "materials": {
+        "Birch Plywood": {
+          "cutting": [
+            {"thickness_mm": 2.0, "ref_speed": 10.0, "ref_power": 60.0, "ref_passes": 1},
+            {"thickness_mm": 3.0, "ref_speed": 7.0, "ref_power": 65.0, "ref_passes": 1},
+            {"thickness_mm": 4.5, "ref_speed": 4.0, "ref_power": 75.0, "ref_passes": 1},
+            {"thickness_mm": 6.0, "ref_speed": 2.0, "ref_power": 80.0, "ref_passes": 2}
+          ],
+          "engraving": [
+            {"mode": "Light Engrave", "ref_speed": 150.0, "ref_power": 15.0, "interval_mm": 0.08},
+            {"mode": "Deep Engrave", "ref_speed": 100.0, "ref_power": 25.0, "interval_mm": 0.08}
+          ]
+        },
+        "Acrylic (Clear/Cast)": {
+          "cutting": [
+            {"thickness_mm": 3.0, "ref_speed": 8.0, "ref_power": 65.0, "ref_passes": 1},
+            {"thickness_mm": 5.0, "ref_speed": 4.0, "ref_power": 75.0, "ref_passes": 1},
+            {"thickness_mm": 8.0, "ref_speed": 1.5, "ref_power": 80.0, "ref_passes": 1}
+          ],
+          "engraving": [
+            {"mode": "Frosted Engrave", "ref_speed": 150.0, "ref_power": 12.0, "interval_mm": 0.08},
+            {"mode": "Deep Engrave", "ref_speed": 80.0, "ref_power": 25.0, "interval_mm": 0.08}
+          ]
+        },
+        "MDF": {
+          "cutting": [
+            {"thickness_mm": 2.0, "ref_speed": 8.0, "ref_power": 65.0, "ref_passes": 1},
+            {"thickness_mm": 3.0, "ref_speed": 5.0, "ref_power": 75.0, "ref_passes": 1},
+            {"thickness_mm": 6.0, "ref_speed": 1.5, "ref_power": 80.0, "ref_passes": 2}
+          ],
+          "engraving": [
+            {"mode": "Standard Engrave", "ref_speed": 200.0, "ref_power": 18.0, "interval_mm": 0.08},
+            {"mode": "Deep Engrave", "ref_speed": 120.0, "ref_power": 30.0, "interval_mm": 0.08}
+          ]
+        },
+        "Cardboard": {
+          "cutting": [
+            {"thickness_mm": 3.0, "ref_speed": 25.0, "ref_power": 35.0, "ref_passes": 1},
+            {"thickness_mm": 6.0, "ref_speed": 12.0, "ref_power": 45.0, "ref_passes": 1}
+          ],
+          "engraving": [
+            {"mode": "Light Engrave", "ref_speed": 250.0, "ref_power": 10.0, "interval_mm": 0.08}
+          ]
+        },
+        "Leather (Veg-Tanned)": {
+          "cutting": [
+            {"thickness_mm": 1.5, "ref_speed": 15.0, "ref_power": 40.0, "ref_passes": 1},
+            {"thickness_mm": 3.0, "ref_speed": 6.0, "ref_power": 55.0, "ref_passes": 1}
+          ],
+          "engraving": [
+            {"mode": "Dark Mark", "ref_speed": 180.0, "ref_power": 12.0, "interval_mm": 0.08}
+          ]
+        }
+      }
+    },
+    "Diode": {
+      "default_wattage": 10.0,
+      "wavelength_nm": 450.0,
+      "materials": {
+        "Birch Plywood": {
+          "cutting": [
+            {"thickness_mm": 2.0, "ref_speed": 4.0, "ref_power": 90.0, "ref_passes": 1},
+            {"thickness_mm": 3.0, "ref_speed": 2.5, "ref_power": 100.0, "ref_passes": 2}
+          ],
+          "engraving": [
+            {"mode": "Light Engrave", "ref_speed": 100.0, "ref_power": 30.0, "interval_mm": 0.08},
+            {"mode": "Deep Engrave", "ref_speed": 60.0, "ref_power": 60.0, "interval_mm": 0.08}
+          ]
+        },
+        "Acrylic (Black)": {
+          "cutting": [
+            {"thickness_mm": 3.0, "ref_speed": 3.0, "ref_power": 95.0, "ref_passes": 1}
+          ],
+          "engraving": [
+            {"mode": "Standard Engrave", "ref_speed": 100.0, "ref_power": 40.0, "interval_mm": 0.08}
+          ]
+        }
+      }
+    },
+    "Fiber": {
+      "default_wattage": 30.0,
+      "wavelength_nm": 1064.0,
+      "materials": {
+        "Stainless Steel": {
+          "cutting": [],
+          "engraving": [
+            {"mode": "Dark Etch", "ref_speed": 200.0, "ref_power": 80.0, "interval_mm": 0.03},
+            {"mode": "Polish/Clean", "ref_speed": 600.0, "ref_power": 30.0, "interval_mm": 0.02}
+          ]
+        },
+        "Anodized Aluminum": {
+          "cutting": [],
+          "engraving": [
+            {"mode": "White Etch", "ref_speed": 800.0, "ref_power": 40.0, "interval_mm": 0.05}
+          ]
+        }
+      }
+    }
+  }
+}
